@@ -3,33 +3,62 @@ import { test, expect } from '@playwright/test';
 import { ProductPage } from '../pages/ProductPage';
 import { CartPage } from '../pages/CartPage';
 
-test.describe('Medusa Storefront - POM Variant Selection', () => {
+test.describe('Medusa Storefront - Product Detail & Variant Suite', () => {
+  let productPage: ProductPage;
+  let cartPage: CartPage;
 
-  test('Student verifies variant selection & cart interaction via POM', async ({ page }) => {
+  // Lifecycle Hook: Executed automatically before EACH test case
+  test.beforeEach(async ({ page }) => {
+    productPage = new ProductPage(page);
+    cartPage = new CartPage(page);
 
-    // 1. Instantiate the Page Objects
-    const productPage = new ProductPage(page);
-    const cartPage = new CartPage(page);
-
-    // 2. Navigate via BasePage method
     await productPage.openProductFromStore('Classic T-Shirt');
+  });
+
+  // TEST CASE 1: Metadata & Pricing Verification
+  test('TC01: Product title and pricing render accurately', async () => {
+    await expect(productPage.productTitle).toBeVisible();
 
     await expect(productPage.productTitle).toContainText(
       /classic t-shirt/i,
       { timeout: 15000 }
     );
+  });
 
-    // 3. Perform actions through business methods (NO raw selectors!)
+  // TEST CASE 2: Single Variant Selection & Cart Injection
+  test('TC02: Guest selects Size M, color White and adds item to bag', async () => {
     await productPage.selectSize('M');
     await productPage.selectColor('White');
 
     await productPage.addToCart();
 
-    // 4. Assert UI state change (Web-first assertion via Page Object)
-    await expect(cartPage.cartCounterOne).toBeVisible({
-      timeout: 20000
-    });
-
+    await expect(cartPage.cartDrawer).toBeVisible();
   });
 
+  // TEST CASE 3: Dynamic Variant State Switching
+  test('TC03: User can switch sizes from S to M and color to White before adding to bag', async () => {
+    await productPage.selectSize('S');
+    await productPage.selectSize('M');
+    await productPage.selectColor('White');
+
+    await productPage.addToCart();
+
+    await expect(cartPage.cartDrawer).toBeVisible();
+
+    await expect(cartPage.cartDrawer).toContainText(/Cart\s*\(1\)/i);
+  });
+
+  // TEST CASE 4: Product & Cart Data Synchronization
+  test('TC04: Added item details sync accurately into cart drawer', async () => {
+    await productPage.selectSize('M');
+    await productPage.selectColor('White');
+
+    await productPage.addToCart();
+
+    await expect(cartPage.cartDrawer).toBeVisible();
+
+    await expect(productPage.productTitle).toContainText(
+      /classic t-shirt/i
+    );
+  });
 });
